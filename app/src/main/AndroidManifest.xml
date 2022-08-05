@@ -19,7 +19,7 @@
         android:theme="@style/Theme.MyMediaStudy"
         tools:targetApi="31">
         <activity
-            android:name=".AudioRecordActivity"
+            android:name=".activity.base.AudioRecordActivity"
             android:exported="false" />
         <activity
             android:name=".activity.base.MediaPicActivity"

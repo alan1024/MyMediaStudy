@@ -13,6 +13,7 @@ import com.alan.mymediastudy.databinding.ActivityAudioRecordBinding
 import com.alan.mymediastudy.utils.PcmToWavUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -36,6 +37,8 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
     private var audioTrack: AudioTrack? = null
     private lateinit var audioData: ByteArray
     private var fileInputStream: FileInputStream? = null
+    private var isStart: Boolean = false
+
 
     override fun bindViewBinding(): ActivityAudioRecordBinding {
         binding = ActivityAudioRecordBinding.inflate(layoutInflater)
@@ -44,9 +47,11 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
 
     override fun init() {
         binding.btStart.setOnClickListener {
+            startTime()
             startRecord()
         }
         binding.btStop.setOnClickListener {
+            stopTime()
             stopRecord()
         }
         binding.btTrans.setOnClickListener {
@@ -56,12 +61,15 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
             )
         }
         binding.btPlay.setOnClickListener {
+            startTime()
             playInModeStream()
         }
         binding.btPause.setOnClickListener {
+            stopTime()
             stopPlay()
         }
         binding.btRing.setOnClickListener {
+            startTime()
             playInModeStatic()
         }
     }
@@ -244,6 +252,27 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
             audioTrack!!.release()
             Log.d(TAG, "Nulling")
         }
+    }
+
+    private fun startTime() {
+        isStart = true
+        var time = 0
+        lifecycleScope.launch {
+            flow<Int> {
+                while (isStart) {
+                    emit(time)
+                    time++
+                    delay(1000)
+                }
+            }.flowOn(Dispatchers.IO)
+                .collect {
+                    binding.tvName.text = "$time s"
+                }
+        }
+    }
+
+    private fun stopTime() {
+        isStart = false
     }
 
 }

@@ -2,6 +2,7 @@ package com.alan.mymediastudy.activity
 
 import android.Manifest
 import androidx.activity.result.contract.ActivityResultContracts
+import com.alan.mymediastudy.activity.base.AudioRecordActivity
 import com.alan.mymediastudy.activity.base.MediaPicActivity
 import com.alan.mymediastudy.databinding.ActivityMainBinding
 import com.alan.mymediastudy.utils.startAC
@@ -33,6 +34,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         binding.btPic.setOnClickListener {
             startAC(this, MediaPicActivity::class.java)
         }
+
+        binding.btRecord.setOnClickListener {
+            startAC(this, AudioRecordActivity::class.java)
+        }
+
 
     }
 

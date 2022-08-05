@@ -5,8 +5,14 @@ import android.os.Environment
 import java.io.File
 
 object Constants {
-    //地址
+    //图片地址
     var PATH = Environment.getExternalStorageDirectory().path + File.separator + "1.jpg"
+
+    //pcm地址
+    var PATH_PCM = Environment.getExternalStorageDirectory().path + File.separator + "test.pcm"
+
+    //wav地址
+    var PATH_WAV = Environment.getExternalStorageDirectory().path + File.separator + "1.jpg"
 
 
     ///////////////////////////////////////////////////////////////////////////

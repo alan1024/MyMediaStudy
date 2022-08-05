@@ -46,6 +46,24 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:text="转换"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/bt_stop"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/bt_pause"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="暂停"
         app:layout_constraintStart_toEndOf="@+id/bt_play"
         app:layout_constraintTop_toBottomOf="@+id/bt_start" />
+
+    <Button
+        android:id="@+id/bt_ring"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="播放Ring"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bt_play" />
 </androidx.constraintlayout.widget.ConstraintLayout>

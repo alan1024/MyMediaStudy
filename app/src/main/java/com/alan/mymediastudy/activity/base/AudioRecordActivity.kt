@@ -1,16 +1,22 @@
 package com.alan.mymediastudy.activity.base
 
-import android.R
 import android.annotation.SuppressLint
 import android.media.*
-import android.os.AsyncTask
-import android.os.Environment
 import android.util.Log
 import com.alan.mymediastudy.activity.BaseActivity
 import com.alan.mymediastudy.constant.Constants.AUDIO_FORMAT
 import com.alan.mymediastudy.constant.Constants.CHANNEL_CONFIG
+import com.alan.mymediastudy.constant.Constants.PATH_PCM
+import com.alan.mymediastudy.constant.Constants.PATH_WAV
 import com.alan.mymediastudy.constant.Constants.SAMPLE_RATE_INHZ
 import com.alan.mymediastudy.databinding.ActivityAudioRecordBinding
+import com.alan.mymediastudy.utils.PcmToWavUtil
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 import java.io.*
 
 
@@ -23,7 +29,7 @@ import java.io.*
  */
 class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
     private val TAG: String = "xujm"
-
+    private val lifecycleScope = MainScope()
     private var audioRecord: AudioRecord? = null // 声明 AudioRecord 对象
     private var recordBufSize = 0 // 声明recoordBufffer的大小字段
     private var isRecording = false
@@ -37,7 +43,27 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
     }
 
     override fun init() {
-
+        binding.btStart.setOnClickListener {
+            startRecord()
+        }
+        binding.btStop.setOnClickListener {
+            stopRecord()
+        }
+        binding.btTrans.setOnClickListener {
+            PcmToWavUtil(SAMPLE_RATE_INHZ, CHANNEL_CONFIG, AUDIO_FORMAT).pcmToWav(
+                PATH_PCM,
+                PATH_WAV
+            )
+        }
+        binding.btPlay.setOnClickListener {
+            playInModeStream()
+        }
+        binding.btPause.setOnClickListener {
+            stopPlay()
+        }
+        binding.btRing.setOnClickListener {
+            playInModeStatic()
+        }
     }
 
 
@@ -50,7 +76,7 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
             CHANNEL_CONFIG, AUDIO_FORMAT, minBufferSize
         )
         val data = ByteArray(minBufferSize)
-        val file = File(getExternalFilesDir(Environment.DIRECTORY_MUSIC), "test.pcm")
+        val file = File(PATH_PCM)
         if (!file.mkdirs()) {
             Log.e(TAG, "Directory not created")
         }
@@ -60,7 +86,7 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
         audioRecord!!.startRecording()
         isRecording = true
 
-        // TODO: 2018/3/10 pcm数据无法直接播放，保存为WAV格式。
+        // TODO: pcm数据无法直接播放，保存为WAV格式。
         Thread {
             var os: FileOutputStream? = null
             try {
@@ -91,7 +117,7 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
     }
 
 
-    fun stopRecord() {
+    private fun stopRecord() {
         isRecording = false
         // 释放资源
         if (null != audioRecord) {
@@ -129,7 +155,7 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
             AudioManager.AUDIO_SESSION_ID_GENERATE
         )
         audioTrack!!.play()
-        val file = File(getExternalFilesDir(Environment.DIRECTORY_MUSIC), "test.pcm")
+        val file = File(PATH_PCM)
         try {
             fileInputStream = FileInputStream(file)
             Thread {
@@ -161,54 +187,49 @@ class AudioRecordActivity : BaseActivity<ActivityAudioRecordBinding>() {
      */
     private fun playInModeStatic() {
         // static模式，需要将音频数据一次性write到AudioTrack的内部缓冲区
-        @SuppressLint("StaticFieldLeak")
-        object : AsyncTask<Void?, Void?, Void?>() {
-            override fun doInBackground(vararg params: Void?): Void? {
+        lifecycleScope.launch {
+            val input: InputStream =
+                resources.openRawResource(com.alan.mymediastudy.R.raw.ring)
+            flow<Int> {
                 try {
-                    val `in`: InputStream = resources.openRawResource(R.raw.ding)
-                    try {
-                        val out = ByteArrayOutputStream()
-                        var b: Int
-                        while (`in`.read().also { b = it } != -1) {
-                            out.write(b)
-                        }
-                        Log.d(TAG, "Got the data")
-                        audioData = out.toByteArray()
-                    } finally {
-                        `in`.close()
+                    val out = ByteArrayOutputStream()
+                    var b: Int
+                    while (input.read().also { b = it } != -1) {
+                        out.write(b)
                     }
+                    Log.d(TAG, "Got the data")
+                    audioData = out.toByteArray()
                 } catch (e: IOException) {
                     Log.wtf(TAG, "Failed to read", e)
+                } finally {
+                    input.close()
                 }
-                return null
-            }
+            }.flowOn(Dispatchers.IO)
+                .collect {
+                    Log.i(TAG, "Creating track...audioData.length = " + audioData.size)
 
-            override fun onPostExecute(v: Void?) {
-                Log.i(TAG, "Creating track...audioData.length = " + audioData.size)
+                    // R.raw.ding铃声文件的相关属性为 22050Hz, 8-bit, Mono
+                    audioTrack = AudioTrack(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build(),
+                        AudioFormat.Builder().setSampleRate(22050)
+                            .setEncoding(AudioFormat.ENCODING_PCM_8BIT)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build(),
+                        audioData.size,
+                        AudioTrack.MODE_STATIC,
+                        AudioManager.AUDIO_SESSION_ID_GENERATE
+                    )
+                    Log.d(TAG, "Writing audio data...")
+                    audioTrack!!.write(audioData, 0, audioData.size)
+                    Log.d(TAG, "Starting playback")
+                    audioTrack!!.play()
+                    Log.d(TAG, "Playing")
+                }
+        }
 
-                // R.raw.ding铃声文件的相关属性为 22050Hz, 8-bit, Mono
-                audioTrack = AudioTrack(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build(),
-                    AudioFormat.Builder().setSampleRate(22050)
-                        .setEncoding(AudioFormat.ENCODING_PCM_8BIT)
-                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                        .build(),
-                    audioData.size,
-                    AudioTrack.MODE_STATIC,
-                    AudioManager.AUDIO_SESSION_ID_GENERATE
-                )
-                Log.d(TAG, "Writing audio data...")
-                audioTrack!!.write(audioData, 0, audioData.size)
-                Log.d(TAG, "Starting playback")
-                audioTrack!!.play()
-                Log.d(TAG, "Playing")
-            }
-
-
-        }.execute()
     }
 
 
